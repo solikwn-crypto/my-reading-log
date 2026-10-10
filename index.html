@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나만의 독서 기록장</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #fbf8f2;
+      background-image: radial-gradient(#e8dfd1 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .font-serif-kr {
+      font-family: 'Gowun Batang', serif;
+    }
+    
+    /* Bookshelf Unit Styles */
+    .bookshelf-unit {
+      background: #e6c594;
+      border-radius: 12px;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.08), 0 10px 25px rgba(160, 120, 70, 0.15);
+      border: 8px solid #c29b5c;
+    }
+
+    .shelf-row {
+      border-bottom: 20px solid #ab8045;
+      box-shadow: 0 8px 12px rgba(0,0,0,0.12);
+      min-height: 200px;
+      position: relative;
+      background: linear-gradient(to bottom, rgba(240, 222, 192, 0.4), rgba(215, 185, 140, 0.6));
+    }
+
+    .shelf-row::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: rgba(0,0,0,0.15);
+    }
+
+    /* 3D Book Spine styling */
+    .book-spine {
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+      transform-origin: bottom center;
+      cursor: grab;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.15), inset 2px 0 3px rgba(255,255,255,0.3);
+      position: relative;
+      border-radius: 2px 4px 4px 2px;
+      user-select: none;
+      margin-right: -4px;
+    }
+
+    .book-spine:active {
+      cursor: grabbing;
+    }
+
+    .book-spine:hover {
+      transform: translateY(-14px) scale(1.03) translateZ(10px);
+      box-shadow: -6px 10px 15px rgba(0,0,0,0.25);
+      z-index: 20;
+    }
+
+    .book-spine.dragging {
+      opacity: 0.4;
+    }
+
+    .book-spine::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 2px; bottom: 0;
+      width: 2px;
+      background: rgba(255,255,255,0.25);
+    }
+
+    .book-spine::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 2px; bottom: 0;
+      width: 2px;
+      background: rgba(0,0,0,0.15);
+    }
+
+    /* Modal Animation */
+    .modal-enter {
+      animation: modalSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes modalSlide {
+      from { opacity: 0; transform: translateY(30px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1e9db;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #d4bc96;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-20">
+
+  <!-- Top Main Navigation Bar -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-amber-200/60 shadow-sm px-3 py-2.5 mb-6">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <!-- Logo / Title -->
+      <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-book-bookmark text-amber-600 text-lg"></i>
+          <h1 class="font-bold text-slate-800 text-base tracking-tight font-serif-kr">나만의 독서 기록장</h1>
+        </div>
+        <!-- Mobile Add Book Button -->
+        <button onclick="openAddModal()" 
+                class="md:hidden px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs font-medium shadow-sm flex items-center gap-1.5 active:scale-95 whitespace-nowrap">
+          <i class="fa-solid fa-plus"></i>
+          <span>책 등록</span>
+        </button>
+      </div>
+
+      <!-- 3 Main Menu Navigation Tabs -->
+      <nav class="flex items-center bg-amber-100/60 p-1 rounded-full border border-amber-200/60 w-full md:w-auto justify-center">
+        <button onclick="switchTab('bookshelf')" id="nav-bookshelf" 
+                class="flex-1 md:flex-initial px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm bg-amber-600 text-white whitespace-nowrap text-center">
+          <i class="fa-solid fa-book-open mr-1"></i> 내 책꽂이
+        </button>
+        <button onclick="switchTab('status')" id="nav-status" 
+                class="flex-1 md:flex-initial px-3.5 py-1.5 rounded-full text-xs font-medium transition text-amber-900 hover:bg-amber-200/50 whitespace-nowrap text-center">
+          <i class="fa-solid fa-list-check mr-1"></i> 독서 상태
+        </button>
+        <button onclick="switchTab('stats')" id="nav-stats" 
+                class="flex-1 md:flex-initial px-3.5 py-1.5 rounded-full text-xs font-medium transition text-amber-900 hover:bg-amber-200/50 whitespace-nowrap text-center">
+          <i class="fa-solid fa-chart-pie mr-1"></i> 독서 통계
+        </button>
+      </nav>
+
+      <!-- Desktop Add Book Button -->
+      <div class="hidden md:block">
+        <button onclick="openAddModal()" 
+                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-sm font-medium shadow-md shadow-amber-200 flex items-center gap-2 transition active:scale-95 whitespace-nowrap">
+          <i class="fa-solid fa-plus"></i>
+          <span>새 책 등록</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- 컨텐츠 영역: 1. 내 책꽂이 뷰 -->
+  <div id="view-bookshelf" class="max-w-7xl mx-auto px-4 space-y-6">
+    <div class="bg-white/70 backdrop-blur p-4 rounded-2xl border border-amber-200/60 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div class="flex flex-wrap items-center gap-1.5 w-full md:w-auto overflow-x-auto py-1" id="categoryPills">
+        <!-- JS Rendered -->
+      </div>
+      <div class="relative w-full md:w-60">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-amber-500"></i>
+        <input type="text" id="searchInput" placeholder="제목 또는 저자 검색..." 
+               class="w-full pl-9 pr-3 py-1.5 bg-amber-50/60 border border-amber-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+      </div>
+    </div>
+
+    <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="bookshelvesContainer">
+      <!-- JS Rendered -->
+    </main>
+  </div>
+
+  <!-- 컨텐츠 영역: 2. 독서 상태 관리 뷰 -->
+  <div id="view-status" class="max-w-6xl mx-auto px-4 hidden space-y-6">
+    <!-- 독서 상태 선택 버튼 필터 -->
+    <div class="bg-white/70 backdrop-blur p-2.5 rounded-2xl border border-amber-200/60 shadow-sm">
+      <div class="flex items-center justify-center gap-2 overflow-x-auto py-0.5 no-scrollbar">
+        <button onclick="setStatusFilter('읽은 책')" id="status-btn-읽은 책" 
+                class="px-4 py-1.5 rounded-full text-xs font-bold bg-amber-600 text-white shadow-sm transition whitespace-nowrap shrink-0 flex items-center gap-1">
+          <i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i> <span>읽은 책</span>
+        </button>
+        <button onclick="setStatusFilter('읽고 있는 책')" id="status-btn-읽고 있는 책" 
+                class="px-4 py-1.5 rounded-full text-xs font-medium bg-amber-100/70 text-amber-800 hover:bg-amber-200 transition whitespace-nowrap shrink-0 flex items-center gap-1">
+          <i class="fa-solid fa-book-reader text-amber-500 text-[11px]"></i> <span>읽고 있는 책</span>
+        </button>
+        <button onclick="setStatusFilter('중단한 책')" id="status-btn-중단한 책" 
+                class="px-4 py-1.5 rounded-full text-xs font-medium bg-amber-100/70 text-amber-800 hover:bg-amber-200 transition whitespace-nowrap shrink-0 flex items-center gap-1">
+          <i class="fa-solid fa-circle-xmark text-rose-500 text-[11px]"></i> <span>중단한 책</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 독서 상태별 컨테이너 카드들 -->
+    <div id="statusGridContainer" class="grid grid-cols-1 gap-6 max-w-2xl mx-auto">
+      <!-- 1. 읽은 책 -->
+      <div id="box-completed" class="bg-white rounded-2xl p-5 border border-emerald-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-emerald-100 pb-3">
+          <h3 class="font-bold text-emerald-800 flex items-center gap-2">
+            <i class="fa-solid fa-circle-check text-emerald-500"></i> 읽은 책
+          </h3>
+          <span id="count-completed" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">0권</span>
+        </div>
+        <div id="list-completed" class="space-y-3 min-h-[250px]"></div>
+      </div>
+
+      <!-- 2. 읽고 있는 책 -->
+      <div id="box-reading" class="bg-white rounded-2xl p-5 border border-amber-200 shadow-sm space-y-4 hidden">
+        <div class="flex items-center justify-between border-b border-amber-100 pb-3">
+          <h3 class="font-bold text-amber-800 flex items-center gap-2">
+            <i class="fa-solid fa-book-reader text-amber-500"></i> 읽고 있는 책
+          </h3>
+          <span id="count-reading" class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">0권</span>
+        </div>
+        <div id="list-reading" class="space-y-3 min-h-[250px]"></div>
+      </div>
+
+      <!-- 3. 중단한 책 -->
+      <div id="box-stopped" class="bg-white rounded-2xl p-5 border border-rose-200 shadow-sm space-y-4 hidden">
+        <div class="flex items-center justify-between border-b border-rose-100 pb-3">
+          <h3 class="font-bold text-rose-800 flex items-center gap-2">
+            <i class="fa-solid fa-circle-xmark text-rose-500"></i> 중단한 책
+          </h3>
+          <span id="count-stopped" class="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold">0권</span>
+        </div>
+        <div id="list-stopped" class="space-y-3 min-h-[250px]"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 컨텐츠 영역: 3. 독서 통계 원그래프 뷰 -->
+  <div id="view-stats" class="max-w-4xl mx-auto px-4 hidden space-y-6">
+    <div class="bg-white rounded-2xl p-6 md:p-8 border border-amber-200 shadow-sm space-y-6">
+      <div class="border-b border-amber-100 pb-4">
+        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-amber-600"></i> 세부 분야별 독서 현황 통계
+        </h3>
+      </div>
+      
+      <div class="flex flex-col md:flex-row items-center justify-center gap-8 py-4">
+        <div class="relative w-56 h-56 flex items-center justify-center">
+          <div id="donutChart" class="w-full h-full rounded-full shadow-inner" style="background: #e2e8f0;"></div>
+          <div class="absolute inset-10 bg-white rounded-full flex flex-col items-center justify-center shadow-sm">
+            <span class="text-xs text-slate-400 font-medium">총 도서</span>
+            <span id="statTotalCount" class="text-xl font-bold text-slate-800 mt-0.5">0권</span>
+          </div>
+        </div>
+
+        <div id="statsLegend" class="flex flex-col gap-2 max-h-60 overflow-y-auto w-full md:w-72 pr-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail View Modal -->
+  <div id="detailModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden modal-enter border border-amber-100 max-h-[90vh] flex flex-col">
+      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-amber-50/50">
+        <span id="detailCategoryBadge" class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold">분류</span>
+        <div class="flex items-center gap-2">
+          <button onclick="moveBookPosition(-1)" class="text-slate-500 hover:text-amber-700 p-1.5 transition bg-amber-50 rounded border border-amber-200 text-xs" title="왼쪽으로 이동">
+            <i class="fa-solid fa-arrow-left"></i> 순서 변경
+          </button>
+          <button onclick="moveBookPosition(1)" class="text-slate-500 hover:text-amber-700 p-1.5 transition bg-amber-50 rounded border border-amber-200 text-xs" title="오른쪽으로 이동">
+            순서 변경 <i class="fa-solid fa-arrow-right"></i>
+          </button>
+          <div class="h-4 w-[1px] bg-slate-300 mx-1"></div>
+          <button id="editBtn" class="text-slate-400 hover:text-amber-600 p-1.5 transition" title="수정">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </button>
+          <button id="deleteBtn" class="text-slate-400 hover:text-rose-500 p-1.5 transition" title="삭제">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+          <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-700 p-1.5 transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1 grid md:grid-cols-5 gap-6">
+        <div class="md:col-span-2 flex flex-col items-center">
+          <div id="detailCover" class="w-40 h-56 rounded-lg shadow-xl overflow-hidden border border-slate-200 flex items-center justify-center bg-slate-100 relative"></div>
+          <div id="detailRating" class="mt-4 flex gap-1 text-amber-400 text-lg"></div>
+        </div>
+        <div class="md:col-span-3 space-y-4">
+          <div>
+            <h2 id="detailTitle" class="text-2xl font-bold text-slate-800 font-serif-kr leading-snug">책 제목</h2>
+            <p id="detailAuthorPublisher" class="text-sm text-slate-500 mt-1">지은이 · 출판사</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs text-slate-500 font-medium">
+            <span><i class="fa-solid fa-book-open mr-1 text-amber-600"></i> 분량: <span id="detailPages">0</span>쪽</span>
+            <span><i class="fa-solid fa-bookmark mr-1 text-amber-600"></i> 상태: <span id="detailStatusBadge" class="font-bold text-amber-700">읽은 책</span></span>
+          </div>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">줄거리 / 소감</h4>
+            <p id="detailSummary" class="text-sm text-slate-600 whitespace-pre-line leading-relaxed">내용 없음</p>
+          </div>
+          <div class="bg-amber-50/80 p-4 rounded-xl border border-amber-200/60 relative">
+            <i class="fa-solid fa-quote-left text-amber-200 text-2xl absolute top-2 left-3"></i>
+            <h4 class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1 pl-5">인상 깊은 구절</h4>
+            <p id="detailQuote" class="text-sm text-amber-900 font-serif-kr italic pl-5 leading-relaxed whitespace-pre-line">"구절 없음"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Book Modal -->
+  <div id="formModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden modal-enter max-h-[90vh] flex flex-col">
+      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-amber-50/50">
+        <h3 id="formTitle" class="font-bold text-slate-700">새 책 등록하기</h3>
+        <button onclick="closeFormModal()" class="text-slate-400 hover:text-slate-700 p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="bookForm" onsubmit="handleFormSubmit(event)" class="p-6 overflow-y-auto space-y-4 flex-1">
+        <input type="hidden" id="bookId">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">책 제목 *</label>
+          <input type="text" id="inputTitle" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">지은이 *</label>
+            <input type="text" id="inputAuthor" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">출판사</label>
+            <input type="text" id="inputPublisher" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">세부 분류 *</label>
+            <select id="inputCategory" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">독서 상태 *</label>
+            <select id="inputStatus" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
+              <option value="읽은 책">읽은 책</option>
+              <option value="읽고 있는 책">읽고 있는 책</option>
+              <option value="중단한 책">중단한 책</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">페이지 수</label>
+            <input type="number" id="inputPages" placeholder="300" min="1" max="5000" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">내 별점</label>
+          <div class="flex items-center gap-1 mt-1 text-amber-400 text-xl cursor-pointer" id="starInputContainer">
+            <i class="fa-regular fa-star star-btn" data-value="1"></i>
+            <i class="fa-regular fa-star star-btn" data-value="2"></i>
+            <i class="fa-regular fa-star star-btn" data-value="3"></i>
+            <i class="fa-regular fa-star star-btn" data-value="4"></i>
+            <i class="fa-regular fa-star star-btn" data-value="5"></i>
+          </div>
+          <input type="hidden" id="inputRating" value="5">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">표지 이미지 파일 업로드</label>
+          <input type="file" id="inputCoverFile" accept="image/*" onchange="handleFileSelect(event)"
+                 class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer">
+          <input type="hidden" id="inputCoverData">
+          <div id="imagePreviewContainer" class="mt-2 hidden flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
+            <img id="imagePreview" class="w-12 h-16 object-cover rounded border border-slate-300">
+            <span class="text-xs text-slate-500 flex-1">업로드된 파일 이미지</span>
+            <button type="button" onclick="removeImage()" class="text-xs text-rose-500 hover:underline">삭제</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">줄거리 및 소감</label>
+          <textarea id="inputSummary" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">인상 깊은 구절</label>
+          <textarea id="inputQuote" rows="4" placeholder="가장 기억에 남는 한 문장" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none font-serif-kr"></textarea>
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition">
+          저장하기
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    const ALL_CATEGORIES = [
+      { id: '소설', name: '소설', spine: 'bg-purple-600 border-purple-500 text-white', headerBg: 'bg-purple-800', color: '#9333ea' },
+      { id: '시', name: '시', spine: 'bg-fuchsia-600 border-fuchsia-500 text-white', headerBg: 'bg-fuchsia-800', color: '#c026d3' },
+      { id: '에세이', name: '에세이', spine: 'bg-pink-600 border-pink-500 text-white', headerBg: 'bg-pink-800', color: '#db2777' },
+      { id: '역사', name: '역사', spine: 'bg-amber-800 border-amber-700 text-white', headerBg: 'bg-amber-950', color: '#92400e' },
+      { id: '지리', name: '지리', spine: 'bg-amber-600 border-amber-500 text-white', headerBg: 'bg-amber-800', color: '#d97706' },
+      { id: '사회과학', name: '사회과학', spine: 'bg-sky-600 border-sky-500 text-white', headerBg: 'bg-sky-800', color: '#0284c7' },
+      { id: '경제', name: '경제', spine: 'bg-blue-600 border-blue-500 text-white', headerBg: 'bg-blue-800', color: '#2563eb' },
+      { id: '정치', name: '정치', spine: 'bg-cyan-600 border-cyan-500 text-white', headerBg: 'bg-cyan-800', color: '#0891b2' },
+      { id: '철학', name: '철학', spine: 'bg-yellow-600 border-yellow-500 text-white', headerBg: 'bg-yellow-800', color: '#ca8a04' },
+      { id: '심리학', name: '심리학', spine: 'bg-orange-600 border-orange-500 text-white', headerBg: 'bg-orange-800', color: '#ea580c' },
+      { id: '과학', name: '과학', spine: 'bg-emerald-600 border-emerald-500 text-white', headerBg: 'bg-emerald-800', color: '#059669' },
+      { id: '수학', name: '수학', spine: 'bg-green-600 border-green-500 text-white', headerBg: 'bg-green-800', color: '#16a34a' },
+      { id: '예술', name: '예술', spine: 'bg-rose-500 border-rose-400 text-white', headerBg: 'bg-rose-700', color: '#f43f5e' },
+      { id: '언어', name: '언어', spine: 'bg-indigo-500 border-indigo-400 text-white', headerBg: 'bg-indigo-700', color: '#4f46e5' },
+      { id: '기술과학', name: '기술과학/의학/공학', spine: 'bg-teal-600 border-teal-500 text-white', headerBg: 'bg-teal-800', color: '#0d9488' },
+      { id: '종교', name: '종교', spine: 'bg-amber-700 border-amber-600 text-white', headerBg: 'bg-amber-900', color: '#b45309' },
+      { id: '총류', name: '총류', spine: 'bg-stone-500 border-stone-400 text-white', headerBg: 'bg-stone-700', color: '#78716c' }
+    ];
+
+    // 통합 및 중복 제거 완료된 전체 도서 목록 (기존 19권 + 신규 추가된 도서들)
+    const INITIAL_BOOKS = [
+      { id: "1", title: "문과 남자의 과학 공부", author: "유시민", publisher: "돌베개", category: "과학", status: "읽은 책", pages: 350, rating: 5, summary: "", quote: "내 몸과 똑같은 배열을 가진 원자의 집합은 우주 어디에도 없다", cover: "" },
+      { id: "2", title: "도둑맞은 집중력", author: "요한 하리", publisher: "어크로스", category: "사회과학", status: "읽은 책", pages: 350, rating: 5, summary: "", quote: "광범위한 사회에서 거대한 침략 세력이 우리의 주의력을 크게 바꿔놓고 있다고 말했다.", cover: "" },
+      { 
+        id: "3", 
+        title: "타인의 집", 
+        author: "엘리트 베테르만", 
+        publisher: "한길사", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 300, 
+        rating: 5, 
+        summary: "", 
+        quote: "-미래는 언제나 상상을 뛰어넘고 눈 깜짝할 사이에 현재를 점령한다. 그 시점에서 돌아보는 과거는 아둔하고 순진해 보일 뿐이다\n\n-잠에서 깨어나는 순간이 그토록 몽롱한 이유는 꿈의 끝자락이 잠을 부여잡고 있어서인지 모른다\n\n-아마도 나는 변함없이 상자 안에 숨어서 안전한 삶을 꿈꿀 거다. 이미 굳어진 어른의 마음은 쉽게 변하기가 힘든 법이니까. 그렇지만 누군가를 향해 손을 멀리 뻗지는 못한다 해도 주먹 쥔 손을 펴서 누군가와 악수를 나눌 용기쯤은 가끔씩 내볼 수 있을까.", 
+        cover: "" 
+      },
+      { id: "4", title: "장하준의 경제학 레시피", author: "장하준", publisher: "부키", category: "경제", status: "읽은 책", pages: 320, rating: 5, summary: "", quote: "채식주의자에게 닭고기 기내식을 주는 것이 공평한 일이라 생각하는 항공사를 원하는 사람은 없을 것이다. 그러나 우리는 승객들의 여러 가지 취향과 필요를 모두 맞추어 주는 다양한 기내식을 제공하지만 표가 너무 비싸서 극소수만 이용할 수 있는 항공사 또한 원치 않는다.", cover: "" },
+      { 
+        id: "5", 
+        title: "천개의 파랑", 
+        author: "천선란", 
+        publisher: "허블", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 330, 
+        rating: 5, 
+        summary: "", 
+        quote: "'나는 세상을 처음 마주쳤을 때 천 개의 단어를 알고 있었다. 그리고 천 개의 단어로 다 표현하지 못할. 천 개의 단어보다 더 무겁고 커다란 몇 사람의 이름을 알았다. 더 많은 단어를 알았더라면 나는 마지막 순간 그들을 무엇으로 표현했을까. 그리움, 따뜻함. 서글픔 정도를 적절히 섞은 단어가 세상에 있던가.\n어쩌면 콜리는 그리움, 따뜻함, 서글픔 정도를 적절히 섞은 단어를 알고 있었을지도 모른다.\n다만 단어의 정의를 아는 것과 실제 상황에 사용하는 것은 차이가 있기 때문에 출력해내지 못한 건 아니었을까 하는 생각을 했다.\n'시원섭섭하다'의 의미를 알지만 그 두가지 감정을 동시에 느낄 수 있다는 걸 이해하지 못할 테니\n\"너 진짜 짜증나\"라는 말에는 상대에 대한 애정이 담겨있을 수도 있다는 것도 로봇은 이해하지 못할테니까\n그래서 콜리의 마지막 저 생각이 안타깝다. 아는 만큼 보인다고 본인이 겪어보지 못한 상황이어서 눈 앞에 두고도 찾아내지 못한 것 같아서", 
+        cover: "" 
+      },
+      { 
+        id: "6", 
+        title: "프레임", 
+        author: "최인철", 
+        publisher: "21세기북스", 
+        category: "심리학", 
+        status: "읽은 책", 
+        pages: 280, 
+        rating: 5, 
+        summary: "", 
+        quote: "-나는 지혜란 자신이 아는 것과 알지 못하는 것. 할 수 있는 것과 할 수 없는 것 사이의 경계를 인식하는 데에서 출발한다고 믿는다.\n결국 작가가 하고 싶었던 말이 '어떻게 하면 지혜롭게 살 것인가' 였다고 생각한다.\n내가 안다고 프레임을 설정한 것, 내가 알지 못한다고 프레임을 설정한 것, 할 수 있다고 프레임을 설정한 것, 할 수 없다고 프레임을 설정한 것\n그 프레임으로부터 파생되는 결과에 대해서도 어느정도는 예측할 수 있는 게 지혜로움이라는 생각에 동의하기 때문에", 
+        cover: "" 
+      },
+      { 
+        id: "7", 
+        title: "나는 메트로폴리탄 미술관의 경비원 입니다", 
+        author: "패트릭 브링리", 
+        publisher: "갤리온", 
+        category: "에세이", 
+        status: "읽은 책", 
+        pages: 400, 
+        rating: 5, 
+        summary: "", 
+        quote: "- 시간이 흐르면서 예술 작품을 감상하는 나만의 방식을 갖추게 됐다. 우선 작품에서 교과서를 쓰는 사람들이 솔깃해할 만한 대단한 특이점을 찾아내고 싶은 유혹을 떨쳐낸다.\n예술 작품을 감상할 때에 마음이 울리는 경험을 해본적이 아직 없어서인지 '이 작가가 어느 시대 활동했던 작가지? 이 작가의 화풍은 어디에 해당하지? 등의 각론 내용을 자꾸만 떠올리려 하는데 심지어 대개의 경우 그 지식이 매우 부족해서 엉터리 해석을 하는 경우가 많다. 예술 작품에서 느껴지는 감상 그대로가 의미있다는 걸 알지만 본능적으로 다가오는 끌림이 없어서인지 자꾸만 학문적으로 해석하려 하는 나를 발견한다.\n\n-더 이상 사슴 눈을 한 신입처럼 행동하고 싶지 않고, 좀 더 현명하고 신중하게 행동하는 것이 슬슬 즐거운 때가 왔다.\n작년 학년 초에 내년도 업무부장을 맡으라는 관리자의 말에 흔쾌히 좋다고 말하지 않는 나를 보며 잠깐 그런 생각을 한 적이 있다. '신규 때는 하라고 하는 것들에 의문을 가져본 적이 없었고, 모든 상황에 최대한의 노력을 들여야 한다고 생각했던 것 같은데 이제는 그런 열정이 식은걸까. 당시의 나에겐 꽤나 큰 고민으로 다가와서 친구와 통화를 하던 중 이 주제에 대해 이야기를 해보기도 했다. 친구의 답변은 내 마음에 쏙 드는 내용이었다. '그 짤을 생각해봐. 입사 1일차와 입사 3개월차와 입사 1년차' 어느새 사회 생활의 좋은 면과 불합리한 면을 직간접적으로 경험해봤기에 아무것도 모르던 신규때와는 같은 마음일 수가 없는 게 당연한 거라고. 사실 나에게 아직 최종 결정권이 있는 건 아니기에 내 주체적으로 행동하는 것이 즐겁다 까지는 아니지만 어느정도 재고 따져보는 게 때묻은 어른이 되는 과정이라면 열정이 식었나 하고 반성하기 보단 열정을 지켜가기 위해 밸런스를 조정하는 과정이라고 받아들이는 게 좋은 거다 라고 생각하려 한다.", 
+        cover: "" 
+      },
+      { 
+        id: "8", 
+        title: "트렌드 코리아 2024", 
+        author: "김난도 외", 
+        publisher: "미래의창", 
+        category: "경제", 
+        status: "읽은 책", 
+        pages: 400, 
+        rating: 5, 
+        summary: "", 
+        quote: "-만인이 만인과 비교되는 시대\n내 삶의 기준을 '나'로 세워두는 편이라고 생각해도 타인과의 비교는 아마 내 평생 해결하지 못하는 숙제 같다는 생각을 한다. 그래서 지난달부터 인스타그램을 비활성화 시켰다. (디지털 디톡스의 목적은 아니라서 수업 아이디어를 얻기 위한 부계정은 잘 쓰고 있다. 내 직접적인 지인의 소식을 접하는 것은 아니기에 스트레스가 덜하고 굳이 내 일상을 과시하지 않아도 되어서 그 점이 좋았다.) 물론 유튜브나 예능 프로그램 등에서 보여지는 타인의 삶을 보며 여전히 '나는 왜 저들만큼 누리지 못할까.' 하는 못난 마음을 갖긴 한다.\n\n-평균적 사고가 무색해진 시대\n정보의 바다 라는 표현은 이미 오래전부터 사용되었지만 그 정보에 접근할 수 있는 플랫폼이 매우 다양해진 요즘은 그 수많은 정보 중에 내가 원하는 부분만을 얼마든지 뽑아낼 수 있고 플랫폼의 알고리즘도 그러한 면에 더욱 몰입할 수 있도록 설계되어 있으니 사람들의 생각이 점점 더 편협해지고 그게 정답이라고 생각하진 않나 싶다. 그러다 보니 어느 순간부터 보편적으로 생각하는 '상식'이라고 하는 것이 모호해졌고, 양쪽의 입장이 나뉠 수 있는 논제에 대한 온라인 대화의 양은 많아졌지만 비대면이라는 상황을 이용해 너무도 쉽게 비난하고 자신만이 옳다 주장하게 되고 내가 이 논쟁을 이어나가고 싶지 않으면 그냥 알림을 확인하지 않는 식이 되어버린다. 인간 사이에 생기는 어떻게 보면 당연할 수 밖에 없는 갈등을 해결해보는 경험의 기회는 오히려 줄어들고 있지 않나 싶다. 끝맺음을 하지 못한 대화는 결국 자신의 의견이 끝까지 맞다 라는 식으로 스스로 생각하고 그러다 보니 사고가 지극히 개인적으로 변해가고 있는 것 같다.\n\n-지속 가능한 행복을 위해서는 도파민과 세로토닌의 적절한 조화가 필요하다.\n사람은 누구나 행복을 추구하며 살아갈텐데 요즘 추구되는 행복은 '쾌락'에 가까워지고 있는 것 같다는 생각을 한다. '쾌락'은 때로는 '죄책감'을 동반하기도 한다는 생각을 한다. 탕후루가 너무 맛있고 그걸 한입 먹으면 달콤함 입안 가득 퍼져서 그 순간은 행복한 것 같지만 이를 다 먹고 난 뒤엔 '와.. 이 설탕 덩어리를 먹었어. 살찌겠다. 같은 불편한 감정이 수반되는 경우가 있다. '욜로' 마인드로 세상을 살아도 한편으로는 '내 인생 이대로 괜찮나...'하는 고민을 하게되는 것이다. 도파민이 분비되는 행동이 상대적으로 '쾌락'을 불러일으키는 행동에 가깝다면 세로토닌이 분비되는 행동이 '행복감'을 느끼게 하는 가깝다고 생각해본다면 후자를 지향하는 삶을 살고 싶다. 어떠한 과정 속에서 느끼는 행복, 행복감을 느끼기 위해 준비하는 과정. 그 행동을 실행해나가는 과정 등등", 
+        cover: "" 
+      },
+      { 
+        id: "9", 
+        title: "생각이 너무 많은 어른들을 위한 심리학", 
+        author: "김혜남", 
+        publisher: "메이븐", 
+        category: "심리학", 
+        status: "읽은 책", 
+        pages: 300, 
+        rating: 5, 
+        summary: "", 
+        quote: "인상깊은 문장 1. 지금 아무것도 하지 않으면 상황은 바뀌는 게 없을테니 그럴바엔 하나라도 더 시도해 보는 게 낫지 않을까.\n-최선의 선택을 하겠다는 이유로 결국엔 아무것도 하지 않는 상태일 때가 많은데 결국 뭐라도 하는 게 어떤 일이든 시작할 수 있는 계기가 되었던 경험들이 있다. 물론 늘 이 사실을 잊고 살긴하지만...\n\n인상깊은 문장 2. 모든 사람은 각자 자신만의 사연을 갖고 있다는 사실을 명심해야 한다.\n-난 늘 나의 인생이 가장 고단하고 힘들다고 생각했고 자기 연민이 강한 편이다. 그래서 때로는 타인의 개인사를 들을 때 '그래도 저 사람은 나보다 낫네.'하면서 저울질을 하곤 했다. 머리로는 이해가 가지만 진심으로 받아들일 수 있을진 모르겠다.\n\n인상깊은 문장 3. 남이 나에게 상처를 주듯. 나도 남에게 상처를 줄 수 있다는 사실을 기억해야만 한다.\n-그치 맞는 말이지...", 
+        cover: "" 
+      },
+      { 
+        id: "10", 
+        title: "열두발자국", 
+        author: "정재승", 
+        publisher: "어크로스", 
+        category: "과학", 
+        status: "읽은 책", 
+        pages: 350, 
+        rating: 5, 
+        summary: "", 
+        quote: "인상깊은 문장 1. 아무도 여러분에게 지도를 주지 않아요.\n-늘 누군가의 지시를 받거나 정해진 가이드 라인을 따르는 삶에서 안정감을 느껴왔는데 앞으로의 인생은 결국 내가 선택해서 나아가야 하는 것임을 요즘에야 조금씩 깨닫고 있다. 삶의 방식이라든가 교직에서 내가 성취하거나 챙야할 것들에게 대해 누구도 답을 주진 않기 때문에 관련 부분에 대해 스스로 찾아보고 연구해야하는데 자꾸만 귀찮다는 핑계로 '난 아마 못해낼거야'란 자세로 미루게 된다.\n\n인상깊은 문장 2. 남들에게 항상 스마트하게 보이려는 마음을 버리는 것이 중요합니다.\n- 성인이 되어서는 상대방이 느끼는 신뢰감을 피부로 느껴본 적은 없는데 그냥 남들 앞에서 '스마트'한 모습을 유지하고 싶은 마음이 기본값으로 깔려있다. 학생 시절에 친구들에게 그런 이야기를 들었던 몇몇 상황들이 자꾸만 남들 앞에서 완벽하게 실수없이 해내는 모습을 보여야 한다는 강박을 만들어낸것 같다. 와중에 모든 일을 정말 스마트하게 처리하는가 하면 그건 또 아니라서 그 괴리감때문에 스스로를 힘들게 하기도 한다. 마음에 새겨야하는데 참 어렵다\n\n인상깊은 문장 3. 여러분과 다르게 생각하는 사람을 만나거나 그런 발상의 기회를 가지세요\n-나와 비슷한 생각을 가진 사람들과의 교류만을 하는 건 생각의 확장을 가져다주진 못한다. 심적으로 안정감은 느끼겠지만. 다른 사람의 관점도 들어보고 그 생각을 들으며 나의 입장도 정리해가며 사고를 확장시키고 싶다.", 
+        cover: "" 
+      },
+      { 
+        id: "11", 
+        title: "마시지 않을 수 없는 밤이니까요", 
+        author: "이슬아", 
+        publisher: "문학동네", 
+        category: "에세이", 
+        status: "읽은 책", 
+        pages: 280, 
+        rating: 5, 
+        summary: "", 
+        quote: "-열아홉 그때는 믿었다. 우리 앞에 기다리고 있을 순백의 시간을 순백으로 살아낼 수 있을거라고\n어른이 되기 전에 할 수 있는 생각이 얼마나 낭만있고 아름다운 건지를 이제야 깨달았는데 왜 그때 당시엔 오히려 '이런 생각은 세상 물정을 모르고 하는 거야'라며 나 스스로를 검열했나 아쉬움이 들때가 있다\n\n-내가 요즘 죽음을 생각하지 않는 것은 나에게 마음을 두고 있는 존재들을 슬프게 하지 않기 위해 나는 오늘도 꾸역꾸역 살아내는 것이다\n\n-술에는 취향이 있는 법이고 모름지기 인간은 제 취향대로 술을 마셔야하는 법이다. 상사눈치보며 직장생활하는 것도 죽을 맛인데 술자리에서까지 남의 눈치를 봐서야 되겠는가?", 
+        cover: "" 
+      },
+      { 
+        id: "12", 
+        title: "나의 돈키호테", 
+        author: "김호연", 
+        publisher: "나무옆의자", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 360, 
+        rating: 5, 
+        summary: "", 
+        quote: "인상깊은 문장 1. 누가 알아준다고 모험을 떠나는 건 아니란다. 나만의 길을 가는 데 남의 시선 따윈 중요치 않아-\n-머리로는 알고 있는 문장이지만 늘 무언가를 할 때 남들의 시선을 의식하게 되고 내가 하는 일이 타인의 눈에 가치 있어 보인다거나 인정받을만한 일이었으면 좋겠다는 생각을 하곤한다. 내가 옳다고 믿는 일이면 소신껏 밀고 나갈 용기가 필요하다.\n\n인상깊은 문장 2. 너는 어떤 말을 쓰는 어른이 되고 싶니?\n- '어떤 말을 쓴다'라는 말은 나는 어떤 가치를 지키며 살아가고 싶은가를 뜻한다고 생각했다. 내가 나이를 먹어가면서 세상에 꽤나 회의적인 어른이 되어가면서도 지키고 싶은 가치. 권솔리 선생님 반에서는 즐거운 활동을 많이 한다. 공부를 소홀히 하는 것은 아니지만 이 아이들이 어른이 되어서 가끔씩 꺼내볼 초등학교 기억에서 '아 그때 수학 시간에 그 활동 안하고 넘어가서 내 수학 실력이 이 정도밖에 안되는거야.' 라며 탓할 학생은 아마 단 한명도 없을거라고 생각한다. 단 그를 대체할 수 있는 다양한 활동을 제시하기 위해 노력하는 교사가 되고 싶다. / 유치함을 잃지 않는 사람. 정신적으로 미성숙한 것을 말하는 것은 아니고 순수함을 간직한 어른이고 싶다는 생각을 한다. 사소한 것에도 크게 기뻐할 줄 알고 가끔씩 벌어지는 해프닝을 즐겁게 받아들이며 누군가에게 신이 나서 떠들 수 있는 그런 어른.\n\n인상깊은 문장 3. 어느새 투실투실해진 몸은 내가 돈키호테가 아니라 산초라는 걸 일깨워주었고... 그게 내 깜냥에 맞는다고 생각한 거야.\n-나의 한계라는 건 결국 내가 정했을지도 모르지만 어린이였을 때 내가 꿈꾸던 나의 미래모습과 지금의 내가 얼마나 닮아 있는가를 생각해보면 그때보단 많이 못미치는 성과를 냈다고 생각한다. '돈을 많이 벌어서 어려운 가정 형편을 완전히 뒤바꿔주겠다'며 호언장담하던 때도 있었는데 지금은 그저 한달한달 주어지는 근로소득에 맞게 겨우겨우 살아가는 어른이 되었다. 좀 슬프네 ㅜㅜ", 
+        cover: "" 
+      },
+      { 
+        id: "13", 
+        title: "자연이 우리를 행복하게 만들 수 있다면", 
+        author: "윈프리트 프리드리히", 
+        publisher: "반니", 
+        category: "과학", 
+        status: "읽은 책", 
+        pages: 300, 
+        rating: 5, 
+        summary: "", 
+        quote: "인상깊은 문장 1. 혼란스러운 시기에 자연의 존재가 그토록 중요한 이유는 무엇일까? 자연은 걱정과 내적 갈등을 잠시 중단시켜 준다.\n-어떤 걱정이나 갈등이 있을 때 자연을 찾은 적은 없었던 것 같은데 자연에 들어서면 그런 근심을 떠올려본 적이 없는 것 같다.\n\n인상깊은 문장 2. 바다가 만드는 풍경이 안정감을 주는 이유는 무엇일까? 우리는 바다 앞에서 본능적으로 어떤 위협도 감지하지 않기 때문이다\n- 시각적으로 엄청나게 넓은 대상이 큰 요동없이 내 앞에 펼쳐져 있어서 그런걸까\n\n인상깊은 문장 3. 인간은 주로 시각을 통해 세상에 한 발 다가가지만 반대로 청각을 통한 세계는 인간에게 한 발 다가온다\n-감각기관이 작동하는 매커니즘에 대해 생각해본 적이 없었는데 이렇게 표현할 수도 있겠구나 싶은 부분이었다.", 
+        cover: "" 
+      },
+      { 
+        id: "14", 
+        title: "마흔에 읽는 쇼펜하우어", 
+        author: "강용수", 
+        publisher: "유노북스", 
+        category: "철학", 
+        status: "읽은 책", 
+        pages: 300, 
+        rating: 5, 
+        summary: "", 
+        quote: "인상깊은 문장 1. 행복과 불행은 객관적인 대상이 아니라 인간의 변덕스러운 감정에 달려있다\n-교대에 입학하고 싶은 마음이 재수를 할 때만 해도 너무도 간절해서 공주교대 면접때 그 시골 풍경을 봤으면서도 제발 붙여만 달라고 기도해놓고 막상 붙어서 대학 생활을 하고 보니 너무 무료하다는 생각에 왜 공주교대는 이렇게 무료한 곳일까 하면서 배부른 소리르 해댔다.\n\n인상깊은 문장 2. 자신 안에 행복의 가치를 둔다면 지속적이고 안정적인 만족감을 느낄 수 있다.\n- 나와 다른 직종을 가진 친구들과의 만남에서 특히 오랜만에 만나게 되는 동창들과의 자리에서는 꼭 수입이나 워라밸에 관한 이야기가 나온다. 근래에 만난 친구들과의 대화 역시 그런 내용이 빠지지 않았고 순간 나의 소득이 너무 적다는 생각에 현타가 왔지만 내가 이 직업을 통해서 얻고 싶었던 가치는 그런 것이 아님을 다시금 깨달았다.\n\n인상깊은 문장 3. 하던 대로 하고 살던 대로 살면 갈등과 고민에서 벗어날 수 없을 것이다.\n-나는 늘 스스로를 반성하면서 살아가려 한다고 자부하지만 거기서 더 나아가지 않는다. 반성을 했으니 구체적인 실천 계획이 있어야 하는데 그게 빠져있다. 늘 이 핑계 저 핑계를 대며 결국 귀찮아하는 마음을 애써 포장하기 바쁠 뿐이다", 
+        cover: "" 
+      },
+      { id: "15", title: "멋진 신세계", author: "올더스 헉슬리", publisher: "문학동네", category: "소설", status: "읽은 책", pages: 320, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "16", title: "한국 요약 금지", author: "임용한", publisher: "시공사", category: "역사", status: "읽은 책", pages: 350, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "17", title: "물고기는 존재하지 않는다", author: "룰루 밀러", publisher: "곰출판", category: "과학", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { 
+        id: "18", 
+        title: "수레바퀴아래서", 
+        author: "헤르만 헤세", 
+        publisher: "민음사", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 250, 
+        rating: 5, 
+        summary: "", 
+        quote: "인상깊은 문장 1. 한스 기벤라트도 하일너의 편을 드는 것이 자신의 의무라고 느끼면서도 차마 용기를 내지 못했다. 그래서 한스는 자신의 비겁한 행동에 대한 죄책감에 사로잡혔다.\n-어른이 된 지금도 소수의 편에, 약자의 편에 선다는 것이 말처럼 쉽지만은 않은데 방황의 시기인 사춘기에 이런 상황을 접한 한스의 마음이 얼마나 괴로웠을지 공감되었다.\n\n인상깊은 문장 2. 선생들은 언제나 죽은 학생을 살아있는 학생과는 전혀 다른 눈으로 바라본다. 잠시나마 돌이킬 수 없는 모든 삶과 젊음에 내재하는 소중한 가치를 가슴깊이 되새겨보는 것이다. 평소에는 아무렇지도 않게 소년의 가슴에 상처를 입히면서도\n-'선생'이라는 호칭 자체도 마음이 안좋은데 왜 이런 매체 속의 교사는 항상 학생들을 위하기보다는 자신의 자리 보전에만 신경을 쓰는 사람으로 묘사될까 하는 마음에 해당 문장이 지나쳐지지 않았다. 특히 마지막 부분이 더 그렇다.\n\n인상깊은 문장 3. 한스가 언제나처럼 애타게 기다리던 일들이 있었다.~\n-일상의 사소한 즐거움을 누리지 못한채 살아간다는 것은 얼마나 괴로운 일일까. 나의 소소한 즐거움은 무엇일까.", 
+        cover: "" 
+      },
+      { 
+        id: "19", 
+        title: "한국사는 없다", 
+        author: "임용한", 
+        publisher: "지식의숲", 
+        category: "역사", 
+        status: "읽은 책", 
+        pages: 350, 
+        rating: 5, 
+        summary: "", 
+        quote: "인상깊은 문장 1. 설령 한반도일부가 과거에 중국 영토였다면 어떤가? 약소했던 한반도 세력이 어떻게 그러한 상황을 극복하고 고구려나 백제 같은 국가로 성장시켰는지를 배우면 된다.-\n\n인상깊은 문장 2.신이 역사 속을 지나가는 순간, 뛰어나가 그 옷자락을 붙잡고 함께 나아간-\n\n인상깊은 문장 3. 모든 시기에는 '빛과 그림자'가 공존하는 법이다. 다 나쁘고 다 좋은 시대란 있을 수 없다.-\n조선이 사로잡혀온 사람을 비록 쇄환하기는 하나 대우를 너무 박하게 한다고 하더라. 사로잡혀온 것이 본디 제 뜻이 아닌데, 이미 쇄환했으면 어째서 이같이 박대하오.", 
+        cover: "" 
+      },
+      // 신규 추가된 도서들 (독서기록_2.pdf 반영)
+      { 
+        id: "20", 
+        title: "2025 트렌드 노트", 
+        author: "신기주 외", 
+        publisher: "북스톤", 
+        category: "경제", 
+        status: "읽은 책", 
+        pages: 320, 
+        rating: 5, 
+        summary: "", 
+        quote: "-나도 해야보았다고 말해야 할 것 들이 너무 많다\n\n-우리 모두는 명확한 가이드 아래에서 편안함을 느낀다.\n\n-과몰입이 긍정적 에너지를 생성해 현실을 살아가는 힘이 되어주었다면 도파민은 현실의 어려움으로부터 잠깐 숨을 수 있는 도피처가 되어준다", 
+        cover: "" 
+      },
+      { 
+        id: "21", 
+        title: "노르웨이의 숲", 
+        author: "무라카미 하루키", 
+        publisher: "문학사상", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 380, 
+        rating: 5, 
+        summary: "", 
+        quote: "-나와 와타나베가 닮은 점은 말이야. 자신에 대해 남이 이해해 주기를 바라지 않는다는거야. 이해받지 못해도 상관없다고 생각하는 거야 나는 나. 남은 남이라고\n\n-자신을 동정하지 마. 자신을 동정하는 건 저속한 인간이나 하는 짓이야.\n\n-온갑 것들을 너무 심각하게 생각하지마요. 우리는 불완전한 세계에서 살아가는 불완전한 인간이에요.\n나는 내가 과거에 얽매인 삶을 산다고 생각한다. 삶에서 겪어온 여러 고난과 시련이 나를 너무 일찍 성장시켰다고 느끼고 그래서 남들은 계속해서 성장하고 있을 때 난 더이상 성장하고 싶어하지 않는다. 그러면서 동시에 스스로를 완벽한 사람이고 싶어해서 내가 보는 나의 모습도 타인이 보는 나의 모습도 이상적이길 꿈꾼다. 하지만 여러 현실을 마주하면서 좌절할 때가 많은데 그때마다 앞서 꼽은 문장들과 비슷한 메시지를 속으로 되내인다.", 
+        cover: "" 
+      },
+      { 
+        id: "22", 
+        title: "다정한 것이 살아남는다", 
+        author: "브라이언 헤어, 버네사 우즈", 
+        publisher: "디플롯", 
+        category: "과학", 
+        status: "읽은 책", 
+        pages: 350, 
+        rating: 5, 
+        summary: "", 
+        quote: "우리 종에게는 우리가 아끼는 무리가 다른 무리에게 위협받는다고 느낄 때, 위협이 되는 무리를 우리의 정신 신경망에서 제거할 능력도 있다. 그들을 인간이 아닌 존재로 여기는 것이다. (연민하고 공감하던 곳에 아무것도 남지 않는다.) 공감하지 못하므로 위협적인 외부인을 나와 같은 사람으로 보지 않으며 그들에게는 얼마든지 잔인해질 수 있는 것이다. 우리는 지구상에서 가장 관용적인 동시에 가장 무자비한 종이다.\n같은 사람에게 어떻게 저렇게까지 극악으로 치닫는 태도를 보일 수 있을까란 생각을 하게 되면 그냥 그 사람은 인성이 나쁘다 라고만 생각했는데 인간이라는 종족 자체가 그럴 가능성을 지닌 존재라는 점이 좀 흥미로웠다. 게다가 나 역시 어쩌면 내게 불리한 상황에서 그들과 다르다고만은 할 수 없을 지도 모르니 조금은 씁쓸했다.\n\n보노보는 다정한 동물로 찬양되기도 하고, '전쟁 말고 사랑'이라는 모토에 걸맞은 히피 유인원이라고 조롱당하기도 한다.\n아이들과 누군가의 가치 혹은 쓰임새에 대해 이야기를 나눈 적이 있다. 누군가의 가치는 보는 시각에 따라 달라질 수 있는 것이니 나를 부정적으로 평가하는 사람때문에 상처받지 말자고 이야기 했는데 보노보 역시 침팬지와 비교하면 어떻게 보면 도태된 개체 종으로서 우리에게 친숙하지 않은 존재였지만 쓸모없고 하찮다고 여겨지는 그들의 특성이 어떤 관점에서는 굉장히 마음 따뜻해지는 측면이 될 수 있으니 나도 나 스스로의 괜찮은 면을 더 살피고 그 가치를 알아보려해주는 사람들과 더 많은 시간을 보내야겠다고 생각했다.", 
+        cover: "" 
+      },
+      { id: "23", title: "노인과 바다", author: "어니스트 헤밍웨이", publisher: "민음사", category: "소설", status: "읽은 책", pages: 130, rating: 5, summary: "", quote: "", cover: "" },
+      { 
+        id: "24", 
+        title: "급류", 
+        author: "정대건", 
+        publisher: "민음사", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 280, 
+        rating: 5, 
+        summary: "", 
+        quote: "화장실에 다녀오던 도담은 복도에서 마주 오던 아이들과 눈이 마주쳤다. 아이들은 뱀이라도 나타난 것처럼 도담으로부터 멀어졌다. 나는 저들에게 아주 불행한 사람으로 기억되겠지 그들의 삶이 힘들 때마다 적어도 내게는 저렇게 끔찍한 일은 벌어지지 않았잖아 라고 위안 삼을 만한 불행의 표본이 되었겠지.\n\n태준->도담 \"네 어두운 그늘까지 사랑해 주지 못해서 미안해\"\n\n자신이 겪은 일과 비교하며 남의 상처를 가볍게 치부하는 냉소적인 태도는 20대 내내 도담이 극복하려 했던 것이었다. 상처를 자랑처럼 내세우는 사람은 얼마나 가난한가.\n\n슬픔과 너무 가까이 지내면 슬픔에도 중독될 수 있어.", 
+        cover: "" 
+      },
+      { 
+        id: "25", 
+        title: "영원한 천국", 
+        author: "정세랑", 
+        publisher: "문학동네", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 260, 
+        rating: 5, 
+        summary: "", 
+        quote: "승주가 있는 천운사에 도착한 상황\n\"나는 가져온 미니어처 컴퓨터와 자판을 아크릴 함 속에 배치했다. 작년에 걸어둔 조화 리스를 걷어내고 새 리스를 달았다. 눈을 감고 승주를 위해 기도했다. 그러면서도 승주에 대한 기억은 의식적으로 차단해버렸다. 내가 슬픔을 견디는 방식이었다. 주의를 딴 데로 분산시켜 감정의 낙뢰를 피해 가는 방식\n\n랑이 언니에게 유심을 건네주려 할 때의 대화\n\"자기야, 삶의 소중한 건 언젠가는 끝나기 때문이야.\"\n\n해상이 칼잡이로서의 삶을 마치고 다시 돌아와 경주를 회상하며 왜 자신의 계획이 실패했을까를 돌아볼 때\n\"견디고 맞서고 끝내 이겨내려는 욕망이었다. 나는 이 욕망에 야성이라는 이름을 붙였다. 이는 어쩌면 신이 인간 본성에 부여한 특별한 성질일지도 몰랐다. 스스로 봉인을 풀고 깨어나야 한다는 점에서. 자기 삶에 의미를 부여하는 요소라는 점에서. 어떠한 운명의 설계로도 변질시킬 수 없는 항구적 기질이라는 점에서.\"", 
+        cover: "" 
+      },
+      { 
+        id: "26", 
+        title: "싯다르타", 
+        author: "헤르만 헤세", 
+        publisher: "민음사", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 250, 
+        rating: 5, 
+        summary: "", 
+        quote: "제가 만약 카마스와미였다면. 쌀 구매 계획이 수포로 돌아간 것을 안 즉시 잔뜩 화가 치밀어서 황급히 되돌아와 버렸을 것입니다.~하지만 저는 좋은 나날을 보냈으며, 배움을 얻었으며, 기쁨을 누렸으며, 분노나 성급함 때문에 제 자신이나 다른 사람들에게 손해를 입히는 일을 하지 않았습니다.\n옆에서 보는 사람은 답답하고 속이 터지겠지만 당사자인 내가 그 일에 스트레스를 받지 않을 수 있다면 적어도 본인의 정신적 건강에는 아직 이로운 태도라고 생각한다. 다만 내가 카마스와미였다면 이 사람이 지금 누굴 놀리나 싶어서 언성이 높아졌을 것은 같다..\n\n그는여전히 자기가 다른 사람들과는 다른 유별난 존재라고, 다른 사람들보다 더 뛰어난 존재라고 느꼈으며, 언제나 그들을 약간 조롱하는 마음으로 약간 비웃는 듯한 경멸감을 가지고 바라보았다.\n누군가를 보면서 '저 사람 참 철이 없다'라고 생각하는 것 만큼 철이 없는 생각도 없다 라고 생각했다. 그럼에도 불구하고 사실 친구들을 만날 때 내가 그들보다는 더 훌륭한 인품을 갖추고 있는 것 같다 라며 스스로를 치켜 세우고 간혹 감정이 상하는 일이 있어도 '왜 저렇게 남 생각을 못할까'라는 식으로 생각하며 혀를 차던때도 있었다. 이런 부분이 좀 닮은 것 같아서 꼽아보았다.\n\n그러한 앎보다도 자기의 자식에 대한 사랑이 더 강하였으며, 그러한 앎보다도 자기의 자식에 대한 정이, 불안감이 더 강하였던 것이다. 도대체 여태까지 어떤 일에 이토록 마음을 온통 빼앗겨 본 적이 있었던가 그렇지만 이토록 행복한 마음으로 누군가를 사랑해 본 적이 있었던가\n자식에 대한 부모의 사랑의 원천이 무엇인지 궁금하긴 하다. 게다가 만약 열달동안 배에서 품고 낳은 자식이라면 그 기다림의 시간과 하루도 빼놓지 않고 표현했을 사랑이 이유가 되어서 자식을 사랑할 수 있다라는 게 이해가 되지만 10년도 넘게 존재조차 모르고 있던 한 청년이 어느날 나타났고 이 사람이 내 자식이다라는 걸 알았을때 곧바로 그 사람을 사랑할 수 있는건 무엇때문일까. 동물적인 본능인가", 
+        cover: "" 
+      },
+      { id: "27", title: "머니트렌드2026", author: "김난도 외", publisher: "미래의창", category: "경제", status: "읽은 책", pages: 350, rating: 5, summary: "", quote: "", cover: "" },
+      { 
+        id: "28", 
+        title: "사서함 110호의 우편물", 
+        author: "도경혜", 
+        publisher: "열린책들", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 350, 
+        rating: 5, 
+        summary: "", 
+        quote: "1. 아직 감정이 무르익기 전인 지금이라면, 건을 좋은 친구처럼 대할 수 있으리라 여겼다. 서로 느낌이 통하고 마음도 잘 맞는 그런 사이로.\n-인간적인 호감만을 갖고 이성을 특별한 존재로서 대하는 것은 불가능한 일일까. 하는 의구심이 들어서 흔히 말하는 남사친, 여사친은 정말 성립할 수 없는 것인지\n\n2. 사랑이 뭔지는 모르겠지만 이런 게 사랑이 아니면 또 뭐란 말이야\n-누군가를 사랑한다라고 정의 내리는 것에는 다양한 방식이 있을 것 같다. 그래서 때로는 '그럼 사랑하는 게 아니지'라는 말이 내게는 꽤 어려움이었다. 하지만 그럼에도 이런 게 사랑이 아니면 또 뭐란 말이야 라는 마음을 갖기도 했기 때문에 매우 공감하면서 이 문장을 읽었다.\n\n3. 추억이란, 사라지는 풍경이란, 그 자체로만 남는 것은 아니니까. 그때 함께한 사람으로 인해 남는 것이기도 하니까.\n-보기 좋은 풍경도 맛있는 음식도 결국 스토리가 결합되었을 때 기억이 아니라 추억이 되는 것이라고 생각하는데 내가 사랑하는 사람과 함께 공유한 추억이라면 더욱 의미가 클테니 이 문장이 와닿았다.", 
+        cover: "" 
+      },
+      { 
+        id: "29", 
+        title: "니체의 초월자", 
+        author: "고든 마리노", 
+        publisher: "민음사", 
+        category: "철학", 
+        status: "읽은 책", 
+        pages: 300, 
+        rating: 5, 
+        summary: "", 
+        quote: "1. 아직 감정이 무르익기 전인 지금이라면, 건을 좋은 친구처럼 대할 수 있으리라 여겼다. 서로 느낌이 통하고 마음도 잘 맞는 그런 사이로.\n-인간적인 호감만을 갖고 이성을 특별한 존재로서 대하는 것은 불가능한 일일까. 하는 의구심이 들어서 흔히 말하는 남사친 여사친은 정말 성립할 수 없는 것인지\n\n2. 사랑이 뭔지는 모르겠지만 이런 게 사랑이 아니면 또 뭐란 말이야\n-누군가를 사랑한다라고 정의 내리는 것에는 다양한 방식이 있을 것 같다. 그래서 때로는 '그럼 사랑하는 게 아니지'라는 말이 내게는 꽤 어려움이었다. 하지만 그럼에도 이런 게 사랑이 아니면 또 뭐란 말이야 라는 마음을 갖기도 했기 때문에 매우 공감하면서 이 문장을 읽었다.\n\n3. 추억이란, 사라지는 풍경이란, 그 자체로만 남는 것은 아니니까. 그때 함께한 사람으로 인해 남는 것이기도 하니까.\n-보기 좋은 풍경도 맛있는 음식도 결국 스토리가 결합되었을 때 기억이 아니라 추억이 되는 것이라고 생각하는데 내가 사랑하는 사람과 함께 공유한 추억이라면 더욱 의미가 클테니 이 문장이 와닿았다.", 
+        cover: "" 
+      },
+      { 
+        id: "30", 
+        title: "브람스를 좋아하세요", 
+        author: "프랑수아즈 사강", 
+        publisher: "문학동네", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 200, 
+        rating: 5, 
+        summary: "", 
+        quote: "1. 그녀는 아무것도 하고 싶지 않았다. 동시에 이틀 동안 혼자 있어야 한다는 것이 두려웠다. 그녀는 애인없는 여자로서 보내야 하는 일요일이 몹시 싫었다.\n-혼자서도 시간을 충분히 보낼 수 있다는 걸 알면서도 지금 주어진 넉넉한 시간이 자신의 의지때문이 아니라는 사실 때문에 스스로를 안타까운 존재로 생각하는 폴의 마음이 공감이 되면서 내가 이전에 사적인 약속으로 주말을 함께 보내지 않는 때가 있었을 때 여자 친구가 이런 마음이었을까 싶었다.\n\n2. 브람스를 좋아하세요? 라는 그 구절이 그녀를 미소 짓게 했다\n-관계의 시작은 어떤 형태로든 인위적으로 시작될 수밖에 없는 것 같은데 그 와중에 그나마 자연스러워 보이는 구실을 찾아서 말을 건네는 방식이 예나 지금이나 똑같구나 싶어 읽으면서 웃음이 나왔다. 그리고 사람 사이의 관계라는 게 말 한마디로부터 시작되는 구나 오죽하면 이 말이 제목이 되었을까를 생각하면 플러팅이라고 하는 고전적인 수법이 참 흥미롭다\n\n3. 여덟 살 때 나는 오케스트라의 지휘자가 되고 싶었어. 당신은? 난 영화에 출연하고 싶었어. 그리고 반드시 그렇게 되고 말거야.\n-로제는 어린 여자와 그저 육체적인 관계만을 맺으면서 오히려 그 여자를 속물적이고 어리석다고 생각하는데 이 대화가 로제의 오만함을 보여주는 대목이라고 생각했다. 로제가 \"당신은?\" 이라고 물은 건 어쩌면 상대를 테스트하기 위함이 아니었을까. 그리고 돌아오는 대답을 듣고 \"역시 그럼 그렇지\"하고 생각하는 사실 예술인이 되고 싶다는 큰 줄기는 같은 것인데 순수 예술과 대중 예술을 구분 지으려는 사람들이 있는 것처럼 로제는 자신이 하는 것은 고급스럽고 의미있는 것, 그녀가 하는 것은 어리석고 수준이 낮은 것이라고 오만하게 생각하고 있다.\n인생에 대해서 충분히 알고 있는 자신이 꿈꾸던 지휘자라는 직업은 대단한 것이고 영화배우가 되고 싶다는 여자는 수준이 떨어진다고 생각하는 마음을 전달하고 싶었던 것 같아서", 
+        cover: "" 
+      },
+      { 
+        id: "31", 
+        title: "이방인", 
+        author: "알베르 카뮈", 
+        publisher: "민음사", 
+        category: "소설", 
+        status: "읽은 책", 
+        pages: 180, 
+        rating: 5, 
+        summary: "", 
+        quote: "1. 총알들은 깊이 들어가 박혀 보이지 않았다. 그것은 마치, 내가 불행의 문을 두드리는 네 번의 짧은 노크 소리와도 같았다.\n-표현력이 좋음\n\n2. 변호사 왈 \"도대체 피고인은 어머니의 장례를 치렀다고 해서 기소된 것입니까. 아니면 살인을 했다고 해서 기소된 것입니까?\" 방청객들이 웃었다.\n-사건의 본질을 바로 잡으려고 하는 질문에 본질은 뒤로한채 사회가 정한 가치에 따르지 않는 것이 더 나쁘다고 낙인찍는 모습에서 느껴지는 아이러니함\n\n3. 사람들은 나를 빼놓은 채 사건을 다루고 있는 것 같았다. 모든 것이 나의 참여 없이 진행되었다.\n-자신의 삶이 결정되는 일인데 우리는 너무도 자연스럽게 내가 아닌 타인에게 그 절차를 맡기는 경우가 있다. '전문가'라는 단어 뒤에 숨어서 내 일을 내가 결정하지 못하는 삶이 너무도 당연해진 사회인 게 새삼 신기하다.\n\n4. 판결문이 17시가 아니라 20시에 낭독되었다는 사실, 그 판결이 전혀 다를 수도 있었으리라는 사실, 속옷을 갈아입는 존재인 인간들에 의해 판결이 내려졌다는 사실, 프랑스 국민 같은 지극히 모호한 개념에 의거하여 판결이 내려졌다는 사실, 그러한 모든 것이 그 결정의 진지성을 많이 깎아내리는 것 같았다.\n-우연에 좌우되는 중대사: 판결이라는 인생의 생사가 걸린 일이 고작 '시간이 몇 시였는가' 같은 사소한 우연에 따라 달라질 수 있다는 점을 지적합니다.\n권위의 허구성: 판사나 배심원도 결국 우리와 똑같이 먹고 자고 속옷을 갈아입는 평범하고 나약한 인간일 뿐인데, 마치 절대적인 진리를 심판하는 것처럼 군다는 점의 모순을 꼬집습니다.\n모호한 허상: '프랑스 국민'이나 '국가', '법'처럼 실체도 모호한 추상적 관념을 명분 삼아 한 인간의 운명을 재단하는 사회의 모습을 비판합니다.\n결국 \"인간이 만든 거대한 법과 제도는 완벽하고 절대적인 것 같지만. 실상은 엉성하고 우연투성이인 부조리한 연극에 불과하다\"는 뫼르소의 깨달음을 담고 있다.\n\n5. 나는 처음으로 세계의 정다운 무관심에 마음을 열고 있었던 것이다. 세계가 그토록 나와 닮아서 마침내 그토록 형제 같다는 것을 깨닫자. 나는 전에도 행복했고, 지금도 여전히 행복하다고 느꼈다. 모든 것이 완성되도록, 내가 외로움을 덜 느낄 수 있도록, 내게 남은 소원은 다만, 내가 처형되는 날 많은 구경꾼들이 모여들어 증오의 함성으로 나를 맞아 주었으면 하는 것뿐이었다.", 
+        cover: "" 
+      },
+      { id: "32", title: "역사의 쓸모", author: "최태성", publisher: "다산초당", category: "역사", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "33", title: "어느날 내가 죽었습니다", author: "김이설", publisher: "자음과모음", category: "소설", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "34", title: "아몬드", author: "손원평", publisher: "창비", category: "소설", status: "읽은 책", pages: 270, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "35", title: "파친코 1", author: "이민진", publisher: "인플루엔셜", category: "소설", status: "읽은 책", pages: 380, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "36", title: "마음의 지혜-내 삶의 기준이 되는 8가지 심리학", author: "하지현", publisher: "휴머니스트", category: "심리학", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "37", title: "아무튼, 디지몬", author: "김지연", publisher: "위고", category: "에세이", status: "읽은 책", pages: 200, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "38", title: "왜 나는 너를 사랑하는가", author: "알랭 드 보통", publisher: "청어람미디어", category: "소설", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "39", title: "이적의 단어들", author: "이적", publisher: "웅진지식하우스", category: "에세이", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "40", title: "채식주의자", author: "한강", publisher: "창비", category: "소설", status: "읽은 책", pages: 228, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "41", title: "불편한 편의점2", author: "김호연", publisher: "나무옆의자", category: "소설", status: "읽은 책", pages: 270, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "42", title: "하얼빈", author: "김훈", publisher: "문학동네", category: "소설", status: "읽은 책", pages: 280, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "43", title: "긴긴밤", author: "루리", publisher: "문학동네", category: "소설", status: "읽은 책", pages: 140, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "44", title: "트렌드코리아 2025", author: "김난도 외", publisher: "미래의창", category: "경제", status: "읽은 책", pages: 400, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "45", title: "우리가 빛의 속도로 갈 수 없다면", author: "김초엽", publisher: "허블", category: "소설", status: "읽은 책", pages: 330, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "46", title: "연남동 빙굴빙굴 빨래방", author: "김지윤", publisher: "클레이하우스", category: "소설", status: "읽은 책", pages: 280, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "47", title: "아무튼, 라디오", author: "임진아", publisher: "위고", category: "에세이", status: "읽은 책", pages: 200, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "48", title: "요즘 어른을 위한 최소한의 세계사", author: "최속", publisher: "포레스트북스", category: "역사", status: "읽은 책", pages: 320, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "49", title: "내가 한 말을 내가 오해하지기로 함", author: "은유", publisher: "한겨레출판", category: "에세이", status: "읽은 책", pages: 280, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "50", title: "다시, 역사의 쓸모", author: "최태성", publisher: "다산초당", category: "역사", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "51", title: "상관없는 거 아닌가", author: "장류진", publisher: "창비", category: "소설", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "52", title: "소년이 온다", author: "한강", publisher: "창비", category: "소설", status: "읽은 책", pages: 216, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "53", title: "취미가 우리를 구해줄 거야", author: "김민철", publisher: "북스톤", category: "에세이", status: "읽은 책", pages: 280, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "54", title: "소년과 두더지와 여우와 말", author: "찰리 맥커시", publisher: "상수리", category: "예술", status: "읽은 책", pages: 128, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "55", title: "모순", author: "양귀자", publisher: "쓰다", category: "소설", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "56", title: "용의자 X의 헌신", author: "히가시노 게이고", publisher: "재인", category: "소설", status: "읽은 책", pages: 380, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "57", title: "좋은 사람 도감", author: "마음의숲 편집부", publisher: "마음의숲", category: "심리학", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "58", title: "빅터 프랭클의 죽음의 수용소에서", author: "빅터 프랭클", publisher: "청아출판사", category: "심리학", status: "읽은 책", pages: 220, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "59", title: "나미야 잡화점의 기적", author: "히가시노 게이고", publisher: "현대문학", category: "소설", status: "읽은 책", pages: 400, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "60", title: "엄마랑 떠날 수 있을 때", author: "오은", publisher: "위고", category: "에세이", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "61", title: "단어가 품은 세계", author: "유선경", publisher: "어크로스", category: "언어", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "62", title: "망원동 브라더스", author: "김호연", publisher: "나무옆의자", category: "소설", status: "읽은 책", pages: 330, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "63", title: "두 명은 아니지만 둘이 살아요", author: "황선우, 김하나", publisher: "위고", category: "에세이", status: "읽은 책", pages: 260, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "64", title: "다시 또, 산티아고 순례길", author: "김한솔이", publisher: "푸른숲", category: "에세이", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "65", title: "청춘의 독서", author: "유시민", publisher: "웅진지식하우스", category: "철학", status: "읽은 책", pages: 320, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "66", title: "인간은 왜 동물보다 잘났다고 착각할까", author: "프란스 드 발", publisher: "김영사", category: "과학", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "67", title: "경험의 멸종", author: "제러미 리프킨", publisher: "민음사", category: "사회과학", status: "읽은 책", pages: 350, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "68", title: "10년 째 합숙 중", author: "정지우", publisher: "민음사", category: "에세이", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "69", title: "두 사람의 인터내셔널", author: "박상영", publisher: "문학동네", category: "소설", status: "읽은 책", pages: 280, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "70", title: "인간실격", author: "다자이 오사무", publisher: "민음사", category: "소설", status: "읽은 책", pages: 180, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "71", title: "언젠가 우리가 같은 별을 바라본다면", author: "차인표", publisher: "해냄", category: "소설", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "72", title: "어른의 행복은 조용하다", author: "태수", publisher: "페이지2", category: "에세이", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "73", title: "달콤 쌉싸름한 초콜릿", author: "라우라 에스키벨", publisher: "민음사", category: "소설", status: "읽은 책", pages: 230, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "74", title: "아무튼, 달리기", author: "김정현", publisher: "위고", category: "에세이", status: "읽은 책", pages: 200, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "75", title: "청년이 없는 나라", author: "조성주", publisher: "후마니타스", category: "사회과학", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "76", title: "악플 전쟁", author: "정문정", publisher: "문학동네", category: "사회과학", status: "읽은 책", pages: 250, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "77", title: "교실 속 자존감", author: "김태현", publisher: "우리교육", category: "사회과학", status: "읽은 책", pages: 260, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "78", title: "파리의 아파트", author: "기욤 미소", publisher: "밝은세상", category: "소설", status: "읽은 책", pages: 380, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "79", title: "페스트", author: "알베르 카뮈", publisher: "민음사", category: "소설", status: "읽은 책", pages: 350, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "80", title: "괭이부리말 아이들", author: "김중미", publisher: "창비", category: "소설", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "81", title: "에드거 앨런 포 단편선", author: "에드거 앨런 포", publisher: "민음사", category: "소설", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "82", title: "서울의 선인", author: "김형민", publisher: "역사의아침", category: "역사", status: "읽은 책", pages: 300, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "83", title: "나의 문화유산 답사기 1", author: "유홍준", publisher: "창비", category: "역사", status: "읽은 책", pages: 400, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "84", title: "당신의 세계는 아직도 바다와 빗소리와 작약을 취급하는지", author: "황인찬", publisher: "문학과지성사", category: "시", status: "읽은 책", pages: 130, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "85", title: "사람은 무엇으로 사는가", author: "레프 톨스토이", publisher: "문예출판사", category: "소설", status: "읽은 책", pages: 200, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "86", title: "사피엔스", author: "유발 하라리", publisher: "김영사", category: "역사", status: "읽은 책", pages: 636, rating: 5, summary: "", quote: "", cover: "" },
+      { id: "87", title: "꽃을 보듯 너를 본다", author: "나태주", publisher: "지혜", category: "시", status: "읽은 책", pages: 140, rating: 5, summary: "", quote: "", cover: "" }
+    ];
+
+    let books = [];
+    let currentTab = 'bookshelf';
+    let selectedCategories = [];
+    let currentStatusFilter = '읽은 책';
+    let searchQuery = '';
+    let selectedBookId = null;
+
+    function initData() {
+      const saved = localStorage.getItem('pdf_imported_all_merged_books');
+      if (saved) {
+        books = JSON.parse(saved);
+      } else {
+        books = INITIAL_BOOKS;
+        saveData();
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem('pdf_imported_all_merged_books', JSON.stringify(books));
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      ['bookshelf', 'status', 'stats'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`nav-${t}`).className = "flex-1 md:flex-initial px-3.5 py-1.5 rounded-full text-xs font-medium transition text-amber-900 hover:bg-amber-200/50 whitespace-nowrap text-center";
+      });
+
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+      document.getElementById(`nav-${tab}`).className = "flex-1 md:flex-initial px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm bg-amber-600 text-white whitespace-nowrap text-center";
+
+      if (tab === 'status') renderStatusView();
+      if (tab === 'stats') renderStatsView();
+    }
+
+    function renderApp() {
+      renderPills();
+      renderBookshelves();
+      populateCategorySelect();
+      if (currentTab === 'status') renderStatusView();
+      if (currentTab === 'stats') renderStatsView();
+    }
+
+    function renderPills() {
+      const container = document.getElementById('categoryPills');
+      const allSelected = selectedCategories.length === 0;
+
+      let html = `
+        <button onclick="toggleCategory('전체')" 
+          class="px-3 py-1 rounded-full text-xs font-medium transition whitespace-nowrap ${allSelected ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-100/70 text-amber-800 hover:bg-amber-200'}">
+          전체
+        </button>
+      `;
+
+      html += ALL_CATEGORIES.map(c => {
+        const isSelected = selectedCategories.includes(c.id);
+        return `
+          <button onclick="toggleCategory('${c.id}')" 
+            class="px-3 py-1 rounded-full text-xs font-medium transition whitespace-nowrap ${isSelected ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-100/70 text-amber-800 hover:bg-amber-200'}">
+            ${c.name}
+          </button>
+        `;
+      }).join('');
+
+      container.innerHTML = html;
+    }
+
+    function toggleCategory(catId) {
+      if (catId === '전체') {
+        selectedCategories = [];
+      } else {
+        const idx = selectedCategories.indexOf(catId);
+        if (idx > -1) {
+          selectedCategories.splice(idx, 1);
+        } else {
+          selectedCategories.push(catId);
+        }
+      }
+      renderApp();
+    }
+
+    function setStatusFilter(status) {
+      currentStatusFilter = status;
+      renderStatusView();
+    }
+
+    function populateCategorySelect() {
+      const select = document.getElementById('inputCategory');
+      select.innerHTML = ALL_CATEGORIES.map(c => `
+        <option value="${c.id}">${c.name}</option>
+      `).join('');
+    }
+
+    function renderBookshelves() {
+      const container = document.getElementById('bookshelvesContainer');
+      const searchedBooks = books.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.author.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      let targetCategories = ALL_CATEGORIES;
+      if (selectedCategories.length > 0) {
+        targetCategories = ALL_CATEGORIES.filter(c => selectedCategories.includes(c.id));
+      }
+
+      container.innerHTML = targetCategories.map(cat => {
+        const catBooks = searchedBooks.filter(b => b.category === cat.id);
+        return `
+          <div class="bookshelf-unit p-4 space-y-2.5 shadow-lg flex flex-col justify-between">
+            <div class="${cat.headerBg} text-white px-3 py-1.5 rounded flex justify-between items-center font-bold text-xs tracking-wide shadow-sm">
+              <div class="flex items-center gap-1.5">
+                <i class="fa-solid fa-bookmark opacity-80"></i>
+                <span>${cat.name}</span>
+              </div>
+              <span class="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">${catBooks.length}권</span>
+            </div>
+            <div class="shelf-row p-2.5 md:p-3.5 flex flex-wrap items-end gap-0.5 px-3"
+                 ondragover="allowDrop(event)" ondrop="handleDrop(event, '${cat.id}')">
+              ${catBooks.length === 0 ? `
+                <div class="w-full flex items-center justify-center text-amber-900/40 text-xs font-medium h-28">
+                  등록된 책이 없습니다.
+                </div>
+              ` : catBooks.map(book => renderBookSpine(book, cat)).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderBookSpine(book, cat) {
+      const pages = book.pages || 200;
+      const calculatedWidth = Math.min(Math.max(34, Math.round(34 + (pages / 35))), 65);
+      return `
+        <div draggable="true" 
+             ondragstart="handleDragStart(event, '${book.id}')" 
+             ondragend="handleDragEnd(event)"
+             ondragover="handleDragOver(event)"
+             onclick="openDetailModal('${book.id}')" 
+             style="width: ${calculatedWidth}px;"
+             class="book-spine ${cat.spine} h-32 md:h-38 px-1 py-2.5 flex flex-col justify-between items-center text-center">
+          <div class="text-[11px] md:text-xs font-bold font-serif-kr [writing-mode:vertical-rl] tracking-wider truncate max-h-24">
+            ${book.title}
+          </div>
+          <div class="h-1"></div>
+        </div>
+      `;
+    }
+
+    function renderStatusView() {
+      const filterBtns = ['읽은 책', '읽고 있는 책', '중단한 책'];
+      filterBtns.forEach(f => {
+        const btn = document.getElementById(`status-btn-${f}`);
+        if (btn) {
+          if (currentStatusFilter === f) {
+            btn.className = "px-4 py-1.5 rounded-full text-xs font-bold bg-amber-600 text-white shadow-sm transition whitespace-nowrap shrink-0 flex items-center gap-1";
+          } else {
+            btn.className = "px-4 py-1.5 rounded-full text-xs font-medium bg-amber-100/70 text-amber-800 hover:bg-amber-200 transition whitespace-nowrap shrink-0 flex items-center gap-1";
+          }
+        }
+      });
+
+      const boxCompleted = document.getElementById('box-completed');
+      const boxReading = document.getElementById('box-reading');
+      const boxStopped = document.getElementById('box-stopped');
+
+      boxCompleted.classList.toggle('hidden', currentStatusFilter !== '읽은 책');
+      boxReading.classList.toggle('hidden', currentStatusFilter !== '읽고 있는 책');
+      boxStopped.classList.toggle('hidden', currentStatusFilter !== '중단한 책');
+
+      const statuses = [
+        { key: '읽은 책', id: 'completed', countId: 'count-completed', listId: 'list-completed' },
+        { key: '읽고 있는 책', id: 'reading', countId: 'count-reading', listId: 'list-reading' },
+        { key: '중단한 책', id: 'stopped', countId: 'count-stopped', listId: 'list-stopped' }
+      ];
+
+      statuses.forEach(s => {
+        const matched = books.filter(b => (b.status || '읽은 책') === s.key);
+        document.getElementById(s.countId).textContent = `${matched.length}권`;
+        
+        const container = document.getElementById(s.listId);
+        if (matched.length === 0) {
+          container.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">등록된 책이 없습니다.</div>`;
+        } else {
+          container.innerHTML = matched.map(book => `
+            <div onclick="openDetailModal('${book.id}')" class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-amber-50/20 hover:bg-amber-50/80 cursor-pointer transition shadow-sm">
+              <div class="w-11 h-15 bg-amber-100 rounded flex items-center justify-center text-xs font-bold font-serif-kr shrink-0 overflow-hidden shadow-xs">
+                ${book.cover ? `<img src="${book.cover}" class="w-full h-full object-cover">` : book.title.slice(0,2)}
+              </div>
+              <div class="flex-1 min-w-0">
+                <h4 class="text-sm font-bold text-slate-800 truncate">${book.title}</h4>
+                <p class="text-xs text-slate-500 truncate mt-0.5">${book.author} · <span class="text-amber-700 font-medium">${book.category}</span></p>
+              </div>
+              <i class="fa-solid fa-chevron-right text-xs text-slate-300"></i>
+            </div>
+          `).join('');
+        }
+      });
+    }
+
+    function renderStatsView() {
+      const totalBooks = books.length;
+      document.getElementById('statTotalCount').textContent = `${totalBooks}권`;
+
+      const statsData = ALL_CATEGORIES.map(cat => {
+        const count = books.filter(b => b.category === cat.id).length;
+        return { ...cat, count };
+      }).filter(item => item.count > 0).sort((a, b) => b.count - a.count);
+
+      const donutEl = document.getElementById('donutChart');
+      const legendEl = document.getElementById('statsLegend');
+
+      if (totalBooks === 0) {
+        donutEl.style.background = '#e2e8f0';
+        legendEl.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">등록된 도서가 없습니다.</div>`;
+        return;
+      }
+
+      let cumulativePercent = 0;
+      let gradientStops = [];
+
+      statsData.forEach(item => {
+        const percent = (item.count / totalBooks) * 100;
+        const start = cumulativePercent;
+        const end = cumulativePercent + percent;
+        gradientStops.push(`${item.color} ${start}% ${end}%`);
+        item.percent = Math.round(percent);
+        cumulativePercent = end;
+      });
+
+      donutEl.style.background = `conic-gradient(${gradientStops.join(', ')})`;
+
+      legendEl.innerHTML = statsData.map(item => `
+        <div class="flex items-center justify-between text-xs font-medium">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${item.color};"></span>
+            <span class="text-slate-700">${item.name}</span>
+          </div>
+          <span class="font-bold text-slate-900">${item.count}권 (${item.percent}%)</span>
+        </div>
+      `).join('');
+    }
+
+    let draggedBookId = null;
+    function handleDragStart(e, id) { draggedBookId = id; e.target.classList.add('dragging'); }
+    function handleDragEnd(e) { e.target.classList.remove('dragging'); draggedBookId = null; }
+    function allowDrop(e) { e.preventDefault(); }
+    function handleDragOver(e) {
+      e.preventDefault();
+      const targetSpine = e.target.closest('.book-spine');
+      if (!targetSpine || !draggedBookId) return;
+      const row = targetSpine.closest('.shelf-row');
+      const draggedEl = row.querySelector(`[ondragstart*="${draggedBookId}"]`);
+      if (!draggedEl) return;
+      const midpoint = targetSpine.getBoundingClientRect().left + targetSpine.getBoundingClientRect().width / 2;
+      if (e.clientX < midpoint) row.insertBefore(draggedEl, targetSpine);
+      else row.insertBefore(draggedEl, targetSpine.nextSibling);
+    }
+    function handleDrop(e, categoryId) {
+      e.preventDefault();
+      if (!draggedBookId) return;
+      const row = e.target.closest('.shelf-row');
+      if (!row) return;
+      const rowBookIds = Array.from(row.querySelectorAll('.book-spine')).map(el => {
+        const match = el.getAttribute('onclick').match(/'([^']+)'/);
+        return match ? match[1] : null;
+      }).filter(Boolean);
+
+      const draggedBook = books.find(b => b.id === draggedBookId);
+      if (draggedBook) draggedBook.category = categoryId;
+
+      const otherBooks = books.filter(b => b.id !== draggedBookId && !rowBookIds.includes(b.id));
+      const reorderedRowBooks = rowBookIds.map(id => books.find(b => b.id === id)).filter(Boolean);
+      books = [...otherBooks, ...reorderedRowBooks];
+      saveData();
+      renderApp();
+    }
+
+    function moveBookPosition(direction) {
+      if (!selectedBookId) return;
+      const bookIdx = books.findIndex(b => b.id === selectedBookId);
+      if (bookIdx === -1) return;
+      const currentBook = books[bookIdx];
+      const sameCategoryBooks = books.filter(b => b.category === currentBook.category);
+      const subIdx = sameCategoryBooks.findIndex(b => b.id === selectedBookId);
+      const targetSubIdx = subIdx + direction;
+      if (targetSubIdx < 0 || targetSubIdx >= sameCategoryBooks.length) return;
+      const targetBook = sameCategoryBooks[targetSubIdx];
+      const targetIdx = books.findIndex(b => b.id === targetBook.id);
+      books[bookIdx] = targetBook;
+      books[targetIdx] = currentBook;
+      saveData();
+      renderApp();
+    }
+
+    function openDetailModal(id) {
+      selectedBookId = id;
+      const book = books.find(b => b.id === id);
+      if (!book) return;
+
+      document.getElementById('detailTitle').textContent = book.title;
+      document.getElementById('detailAuthorPublisher').textContent = `${book.author} · ${book.publisher || '출판사 미상'}`;
+      document.getElementById('detailCategoryBadge').textContent = book.category;
+      document.getElementById('detailPages').textContent = book.pages || '200';
+      document.getElementById('detailStatusBadge').textContent = book.status || '읽은 책';
+      document.getElementById('detailSummary').textContent = book.summary || '작성된 소감이 없습니다.';
+      document.getElementById('detailQuote').textContent = book.quote ? book.quote : '인상 깊은 구절이 등록되지 않았습니다.';
+
+      const coverContainer = document.getElementById('detailCover');
+      const matchedCategory = ALL_CATEGORIES.find(c => c.id === book.category) || ALL_CATEGORIES[0];
+      if (book.cover) {
+        coverContainer.innerHTML = `<img src="${book.cover}" alt="표지" class="w-full h-full object-cover">`;
+      } else {
+        coverContainer.innerHTML = `
+          <div class="w-full h-full ${matchedCategory.spine} flex flex-col items-center justify-center p-3 text-center">
+            <span class="text-xs font-bold font-serif-kr leading-snug">${book.title}</span>
+            <span class="text-[10px] mt-2 opacity-80">${book.author}</span>
+          </div>
+        `;
+      }
+
+      document.getElementById('detailRating').innerHTML = Array.from({length: 5}, (_, i) => 
+        `<i class="fa-${i < (book.rating || 5) ? 'solid' : 'regular'} fa-star"></i>`
+      ).join('');
+
+      document.getElementById('editBtn').onclick = () => openEditModal(book.id);
+      document.getElementById('deleteBtn').onclick = () => deleteBook(book.id);
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    function closeDetailModal() { document.getElementById('detailModal').classList.add('hidden'); }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('inputCoverData').value = e.target.result;
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imagePreviewContainer').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeImage() {
+      document.getElementById('inputCoverFile').value = '';
+      document.getElementById('inputCoverData').value = '';
+      document.getElementById('imagePreviewContainer').classList.add('hidden');
+    }
+
+    function setupStarRating() {
+      document.querySelectorAll('.star-btn').forEach(star => {
+        star.addEventListener('click', (e) => {
+          const val = parseInt(e.target.getAttribute('data-value'));
+          document.getElementById('inputRating').value = val;
+          updateStarUI(val);
+        });
+      });
+    }
+
+    function updateStarUI(val) {
+      document.querySelectorAll('.star-btn').forEach((star, index) => {
+        if (index < val) { star.classList.remove('fa-regular'); star.classList.add('fa-solid'); }
+        else { star.classList.remove('fa-solid'); star.classList.add('fa-regular'); }
+      });
+    }
+
+    function openAddModal() {
+      document.getElementById('formTitle').textContent = '새 책 등록하기';
+      document.getElementById('bookId').value = '';
+      document.getElementById('bookForm').reset();
+      document.getElementById('inputRating').value = '5';
+      removeImage();
+      updateStarUI(5);
+      document.getElementById('formModal').classList.remove('hidden');
+    }
+
+    function openEditModal(id) {
+      closeDetailModal();
+      const book = books.find(b => b.id === id);
+      if (!book) return;
+      document.getElementById('formTitle').textContent = '독서 기록 수정';
+      document.getElementById('bookId').value = book.id;
+      document.getElementById('inputTitle').value = book.title;
+      document.getElementById('inputAuthor').value = book.author;
+      document.getElementById('inputPublisher').value = book.publisher || '';
+      document.getElementById('inputCategory').value = book.category;
+      document.getElementById('inputStatus').value = book.status || '읽은 책';
+      document.getElementById('inputPages').value = book.pages || '';
+      document.getElementById('inputRating').value = book.rating || 5;
+      document.getElementById('inputSummary').value = book.summary || '';
+      document.getElementById('inputQuote').value = book.quote || '';
+
+      if (book.cover) {
+        document.getElementById('inputCoverData').value = book.cover;
+        document.getElementById('imagePreview').src = book.cover;
+        document.getElementById('imagePreviewContainer').classList.remove('hidden');
+      } else { removeImage(); }
+
+      updateStarUI(book.rating || 5);
+      document.getElementById('formModal').classList.remove('hidden');
+    }
+
+    function closeFormModal() { document.getElementById('formModal').classList.add('hidden'); }
+
+    function handleFormSubmit(event) {
+      event.preventDefault();
+      const id = document.getElementById('bookId').value;
+      const title = document.getElementById('inputTitle').value;
+      const author = document.getElementById('inputAuthor').value;
+      const publisher = document.getElementById('inputPublisher').value;
+      const category = document.getElementById('inputCategory').value;
+      const status = document.getElementById('inputStatus').value;
+      const pages = parseInt(document.getElementById('inputPages').value) || 200;
+      const rating = parseInt(document.getElementById('inputRating').value);
+      const summary = document.getElementById('inputSummary').value;
+      const quote = document.getElementById('inputQuote').value;
+      const cover = document.getElementById('inputCoverData').value;
+
+      if (id) {
+        const idx = books.findIndex(b => b.id === id);
+        if (idx !== -1) books[idx] = { id, title, author, publisher, category, status, pages, rating, summary, quote, cover };
+      } else {
+        books.push({ id: Date.now().toString(), title, author, publisher, category, status, pages, rating, summary, quote, cover });
+      }
+
+      saveData();
+      renderApp();
+      closeFormModal();
+    }
+
+    function deleteBook(id) {
+      if (confirm('이 독서 기록을 삭제하시겠습니까?')) {
+        books = books.filter(b => b.id !== id);
+        saveData();
+        renderApp();
+        closeDetailModal();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initData();
+      setupStarRating();
+      renderApp();
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        renderBookshelves();
+      });
+    });
+  </script>
+</body>
+</html>
